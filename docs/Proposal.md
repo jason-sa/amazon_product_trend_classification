@@ -33,7 +33,7 @@ The star ratings are from 1-5, and I would like my trend statistic to indicate a
 
 ## **Features**
 
-The feature set will be the first review in the 30 day range since the last review. Taking the first review means the model is attemtping to predict whether or not the product will trend in the next 30 days or not. I am also planning to generate a topic/group of comments feature by utilizing unsupervised learning. I am planning to stay away from features that are inputs or highly correlated to the trend score, or else those would be leaky variables.
+The feature set will be the first review in the 30 day range since the last review. Taking the first review means the model is attempting to predict whether or not the product will trend in the next 30 days or not. I am also planning to generate a topic/group of comments feature by utilizing unsupervised learning. I am planning to stay away from features that are inputs or highly correlated to the trend score, or else those would be leaky variables.
 
 ## **MVP**
 
