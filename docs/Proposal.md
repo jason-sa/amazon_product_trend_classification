@@ -37,4 +37,4 @@ The feature set will be the first review in the 30 day range since the last revi
 
 ## **MVP**
 
-I created a quick and dirty MVP of 10000 random toy products between 2014-2015. Logistic Regression was able to identify 18/93 positive cases in my training data set. There appears to be some potential for building a model. The MVP notebook can be found [here](../py_files/Amazon_Toy_reviews.ipynb).
+I created a quick and dirty MVP of 10000 random toy products between 2014-2015. Logistic Regression was able to identify 18/93 positive cases in my training data set. There appears to be some potential for building a model. The MVP notebook can be found [here](https://github.com/jason-sa/amazon_product_trend_classification/blob/master/py_files/Amazon_Toy_reviews.ipynb).
