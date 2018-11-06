@@ -107,23 +107,33 @@ class AmazonReviews:
     def create_observations(self):
         ''' Creates the observation data set containing the first review and the unsupervised topic assigned.
 
-        Notes: Need to get just one review or concatenate all reviews on the first day
         '''
+
+        # get all reviews which appeared in the first day of the horizon
         first_review_day = self.reviews_selected_df.groupby('product_id')['review_date'].min().reset_index()
         first_review_day = first_review_day.merge(
-            self.reviews_selected_df.loc[:,['review_id', 'product_id', 'review_date']],
+            self.reviews_selected_df.loc[:,['review_id', 'product_id', 'review_date', 'review_body']],
             how = 'inner',
             on = ['review_date', 'product_id']
         )
+        # print(first_review_day.head())
 
-        first_review_day = first_review_day.groupby('product_id')['review_id'].min().reset_index()
+        # get only one reivew if many occured on the first day
+        first_review = first_review_day.groupby('product_id')['review_id'].head(1).reset_index()
+        # print(first_review.head())
         self.obs = first_review_day.merge(
-            self.product_trend_df.reset_index(),
+            first_review,
             how = 'inner',
-            on = 
+            on = ['review_id']
         )
 
-        return NotImplementedError
+        self.obs = self.obs.merge(
+            self.product_trend_df.reset_index().loc[:,['product_id', 'trend']],
+            how = 'inner',
+            on = 'product_id'
+        )
+
+        self.obs.drop(columns='index', inplace=True)
     
     def create_train_test_split(self):
         ''' Performs train test split with optional sampling strategy
