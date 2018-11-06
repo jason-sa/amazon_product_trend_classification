@@ -7,6 +7,11 @@ import pickle
 class AmazonReviews:
     ''' Class for reading Amazon review data and building a ML model to predict whether or not a product
         will trend based on a customer review. The review data is sourced from (https://s3.amazonaws.com/amazon-reviews-pds/readme.html).
+
+        date_filter:
+        reviews_df:
+        reviews_selected_df:
+        product_trend_df:
     '''
     data_path = '../data/'
 
@@ -73,13 +78,13 @@ class AmazonReviews:
         # drop max_review_date to avoid renaming
         self.reviews_df.drop(columns='max_review_date', errors='ignore', inplace=True)
         self.reviews_df.rename(columns={'review_date_x': 'review_date', 'review_date_y': 'max_review_date'}, inplace=True)
-        review_range_df = self.reviews_df[
+        self.reviews_selected_df = self.reviews_df[
             (self.reviews_df['max_review_date'] - self.reviews_df['review_date']) 
             <= timedelta(days=review_days)
             ]
         
         # calculate the review count, avg, and std star rating
-        self.product_trend_df = review_range_df.groupby('product_id')['adj_star_rating'].agg(['count','median','std'])
+        self.product_trend_df = self.reviews_selected_df.groupby('product_id')['adj_star_rating'].agg(['count','median','std'])
         self.product_trend_df['orig_std'] = self.product_trend_df['std']
 
         # set std with NA as the min std of the data set
@@ -99,6 +104,59 @@ class AmazonReviews:
         trend_cutoff = self.product_trend_df['trend_score'].quantile(trend_percent)
         self.product_trend_df['trend'] = (self.product_trend_df['trend_score'] > trend_cutoff).astype(int)
 
+    def create_observations(self):
+        ''' Creates the observation data set containing the first review and the unsupervised topic assigned.
+
+        Notes: Need to get just one review or concatenate all reviews on the first day
+        '''
+        first_review_day = self.reviews_selected_df.groupby('product_id')['review_date'].min().reset_index()
+        first_review_day = first_review_day.merge(
+            self.reviews_selected_df.loc[:,['review_id', 'product_id', 'review_date']],
+            how = 'inner',
+            on = ['review_date', 'product_id']
+        )
+
+        first_review_day = first_review_day.groupby('product_id')['review_id'].min().reset_index()
+        self.obs = first_review_day.merge(
+            self.product_trend_df.reset_index(),
+            how = 'inner',
+            on = 
+        )
+
+        return NotImplementedError
+    
+    def create_train_test_split(self):
+        ''' Performs train test split with optional sampling strategy
+        '''
+        raise NotImplementedError
+
+    def create_dtm(self):
+        ''' Creates the document term matrix from the training data set
+        '''
+        raise NotImplementedError
+    
+    def run_model(self):
+        ''' Runs a single model
+        '''
+        return NotImplementedError
+    
+    def cross_validate(self):
+        ''' Performs 10-fold CV 
+        '''
+        return NotImplementedError
+
+    def model_metrics(self):
+        ''' Builds heatmap and calcualtes accuracy, recall, precision, and F1
+        '''
+        return NotImplementedError
+
+    def unsupervised_model(self):
+        ''' Builds some unsupervised model
+        '''
+    
+    def calc_inertia(self):
+        ''' Runs some range of parameters and calcualtes inertia
+        '''
 
         
 
