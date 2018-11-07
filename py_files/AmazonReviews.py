@@ -63,14 +63,14 @@ class AmazonReviews:
         # save data as pickle to reload if necessary
         self.reviews_df = self.reviews_df[self.reviews_df['review_date'] >= self.date_filter]
     
-    def calc_trend_score(self, rating_power=1.5, review_days = 14, trend_percent = .99):
+    def calc_trend_score(self, rating_power=1.5, review_days = 30, trend_percent = .99):
         ''' Calcualtes the trend scored defined as tanh( (review proportion * mean rating) / std rating ).
         The star rating can be smoothed by using rating_power. This will result in star_rating = star_rating ** rating_power.
 
         rating_power: default 1.5 
         Smooths the star rating scale 1-5 to star_rating ** rating_power
         
-        review_time: default 14
+        review_time: default 30
         The trend score is calculated over the last n days since the last reivew. The default 30 days means
         all reviews that occured 30 days prior to the last review for the product are included in the trend score calcualtion. 
 
@@ -80,16 +80,16 @@ class AmazonReviews:
         # smooth the star rating
         self.reviews_df['adj_star_rating'] = self.reviews_df['star_rating'] ** rating_power
 
-        # create data frame for all reviews 30 days from the latest review
-        last_review_df = self.reviews_df.groupby('product_id')['review_date'].max().reset_index()
-        self.reviews_df = self.reviews_df.merge(last_review_df, how='inner', on='product_id')
+        # create data frame for all reviews 'review_days' days from the first review
+        first_review_df = self.reviews_df.groupby('product_id')['review_date'].min().reset_index()
+        self.reviews_df = self.reviews_df.merge(first_review_df, how='inner', on='product_id')
         
         # drop max_review_date to avoid renaming
-        self.reviews_df.drop(columns='max_review_date', errors='ignore', inplace=True)
-        self.reviews_df.rename(columns={'review_date_x': 'review_date', 'review_date_y': 'max_review_date'}, inplace=True)
+        self.reviews_df.drop(columns='min_review_date', errors='ignore', inplace=True)
+        self.reviews_df.rename(columns={'review_date_x': 'review_date', 'review_date_y': 'min_review_date'}, inplace=True)
         self.reviews_selected_df = self.reviews_df[
-            (self.reviews_df['max_review_date'] - self.reviews_df['review_date']) 
-            <= timedelta(days=review_days)
+            (self.reviews_df['review_date'] - self.reviews_df['min_review_date']) 
+            >= timedelta(days=review_days)
             ]
         
         # calculate the review count, avg, and std star rating
