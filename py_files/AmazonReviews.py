@@ -3,6 +3,9 @@ import numpy as np
 from datetime import datetime, timedelta
 import os
 import pickle
+import re
+
+from sklearn.model_selection import train_test_split
 
 class AmazonReviews:
     ''' Class for reading Amazon review data and building a ML model to predict whether or not a product
@@ -12,8 +15,15 @@ class AmazonReviews:
         reviews_df:
         reviews_selected_df:
         product_trend_df:
+        obs:
+        X:
+        y:
+        X_train: dictionary of training data sets with 'orig' being the original train/test split from X
     '''
     data_path = '../data/'
+    RANDOM_STATE = 42
+    _orig = 'orig'
+
 
     def __init__(self, date_filter=datetime(2014,1,1)): # should add a flag to force to read from file
         ''' Initalizes an AmazonReview instance
@@ -22,7 +32,6 @@ class AmazonReviews:
         If None, then date_filter will be set to 2014-01-01
         '''
         self.date_filter = date_filter
-        self.reviews_df = pd.DataFrame() # df to hold the review data 
 
     def load_data(self, path):
         ''' Loads the AmazonReview data
@@ -107,6 +116,8 @@ class AmazonReviews:
     def create_observations(self):
         ''' Creates the observation data set containing the first review and the unsupervised topic assigned.
 
+            Creates obs data frame (product_id, review_date, review_id, review_body, trend). 
+            The obs data frame combines the first review with the product trend. If a review body is empty, then the product is dropped.
         '''
 
         # get all reviews which appeared in the first day of the horizon
@@ -134,16 +145,42 @@ class AmazonReviews:
         )
 
         self.obs.drop(columns='index', inplace=True)
+        self.obs.dropna(inplace=True)
     
     def create_train_test_split(self):
-        ''' Performs train test split with optional sampling strategy
+        ''' Splits obs into X and y. Creates dictionaries to hold the train/test data sets, and performs an inital split.
         '''
-        raise NotImplementedError
+        self.X = (self.obs.review_body
+                    .str.replace(r"""\w*\d\w*""", ' ')  # remove digits
+                    .str.replace('_', ' ')              # remove underscores
+        )
 
-    def create_dtm(self):
+        self.y = self.obs.trend
+
+        self.X_train = {}
+        self.X_test = {}
+        self.y_train = {}
+        self.y_test = {}
+        self.models = set()
+
+        self.X_train[self._orig], self.X_test[self._orig], self.y_train[self._orig], self.y_test[self._orig] = train_test_split(
+                                                                                                                    self.X, 
+                                                                                                                    self.y, 
+                                                                                                                    test_size = 0.25, 
+                                                                                                                    stratify=self.y,
+                                                                                                                    random_state = self.RANDOM_STATE)
+        self.models.add(self._orig)
+
+    def add_dtm(self, dtm_model, model_name):
         ''' Creates the document term matrix from the training data set
+
+        dtm_model: sklearn model to create dtm
+        model_name: name of the model 
         '''
-        raise NotImplementedError
+        self.models.add(model_name)
+        self.X_train[model_name] = [dtm_model.fit_transform(self.X_train[self._orig]), dtm_model.get_feature_names()]
+        self.X_test[model_name] = [dtm_model.transform(self.X_test[self._orig]), dtm_model.get_feature_names()]
+
     
     def run_model(self):
         ''' Runs a single model
