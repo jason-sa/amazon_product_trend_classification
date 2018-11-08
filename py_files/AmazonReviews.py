@@ -4,8 +4,10 @@ from datetime import datetime, timedelta
 import os
 import pickle
 import re
+from collections import defaultdict
 
 from sklearn.model_selection import train_test_split
+from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score, confusion_matrix
 
 class AmazonReviews:
     ''' Class for reading Amazon review data and building a ML model to predict whether or not a product
@@ -32,6 +34,7 @@ class AmazonReviews:
         If None, then date_filter will be set to 2014-01-01
         '''
         self.date_filter = date_filter
+        self.results = pd.DataFrame() ## key error about concatenating. probably should set index here
 
     def load_data(self, path):
         ''' Loads the AmazonReview data
@@ -147,45 +150,71 @@ class AmazonReviews:
         self.obs.drop(columns='index', inplace=True)
         self.obs.dropna(inplace=True)
     
-    def create_train_test_split(self):
+    def create_train_test_split(self, train_reduction = 0.1):
         ''' Splits obs into X and y. Creates dictionaries to hold the train/test data sets, and performs an inital split.
         '''
-        self.X = (self.obs.review_body
+        if train_reduction != 1:
+            neg_split = int(self.obs.shape[0] * train_reduction * .99)
+            pos_split = int(self.obs.shape[0] * train_reduction * .01)
+            reduced_obs = pd.concat(
+                [self.obs[self.obs['trend'] == 0].sample(n=neg_split),
+                self.obs[self.obs['trend'] == 1].sample(n=pos_split)],
+                axis=0
+                )
+        else:
+            reduced_obs = self.obs
+
+        self.X = (reduced_obs.review_body
                     .str.replace(r"""\w*\d\w*""", ' ')  # remove digits
                     .str.replace('_', ' ')              # remove underscores
         )
 
-        self.y = self.obs.trend
+        self.y = reduced_obs.trend
 
-        self.X_train = {}
-        self.X_test = {}
-        self.y_train = {}
-        self.y_test = {}
-        self.models = set()
-
-        self.X_train[self._orig], self.X_test[self._orig], self.y_train[self._orig], self.y_test[self._orig] = train_test_split(
-                                                                                                                    self.X, 
-                                                                                                                    self.y, 
-                                                                                                                    test_size = 0.25, 
-                                                                                                                    stratify=self.y,
-                                                                                                                    random_state = self.RANDOM_STATE)
-        self.models.add(self._orig)
-
+        self.X_train, self.X_test, self.y_train, self.y_test = train_test_split(
+                                                            self.X, 
+                                                            self.y, 
+                                                            test_size = 0.25, 
+                                                            stratify=self.y,
+                                                            random_state = self.RANDOM_STATE)
+        
     def add_dtm(self, dtm_model, model_name):
         ''' Creates the document term matrix from the training data set
 
         dtm_model: sklearn model to create dtm
         model_name: name of the model 
         '''
-        self.models.add(model_name)
-        self.X_train[model_name] = [dtm_model.fit_transform(self.X_train[self._orig]), dtm_model.get_feature_names()]
-        self.X_test[model_name] = [dtm_model.transform(self.X_test[self._orig]), dtm_model.get_feature_names()]
+        # X_train = dtm_model.fit_transform(self.models[self._orig]['X_train'])
+        # X_test = dtm_model.transform(self.models[self._orig]['X_test'])
+
+        # self.models[model_name].update({
+        #     'model': dtm_model,
+        #     'X_train': X_train,
+        #     'X_test': X_test}
+        # )
 
     
-    def run_model(self):
-        ''' Runs a single model
+    def run_model(self, model, model_name):
+        ''' Fits classification model, records accuracy, F1, precision, and recall to a data frame, and saves the confusion matrix
         '''
-        return NotImplementedError
+        model.fit(self.X_train, self.y_train)
+        y_pred = model.predict(self.X_train)
+
+        scores = [
+            accuracy_score(self.y_train, y_pred),
+            precision_score(self.y_train, y_pred),
+            recall_score(self.y_train, y_pred),
+            f1_score(self.y_train, y_pred)
+        ]
+
+        m_results = pd.DataFrame(scores)
+        m_results.set_index(['Accuracy', 'Precision','Recall','F1 Score'])
+        m_results.columns = model
+
+        self.results.drop(columns=model, errors='ignore', inplace=True)
+        self.results = pd.concat([self.results, m_results], axis=1)
+
+        # need probably a defaultdict to store the confusion matrix
     
     def cross_validate(self):
         ''' Performs 10-fold CV 
@@ -206,5 +235,57 @@ class AmazonReviews:
         '''
 
         
+'''
+from sklearn.pipeline import Pipeline
+from sklearn.linear_model import LogisticRegression
+from sklearn.preprocessing import StandardScaler
+from imblearn.pipeline import Pipeline as imbPipeline
+from imblearn.over_sampling import SMOTE
+from skopt import BayesSearchCV
+from skopt.space import Real, Integer, Categorical
 
+from sklearn.metrics import confusion_matrix, f1_score, recall_score, precision_score, accuracy_score
+
+first_pipe = imbPipeline([('cnt_v', CountVectorizer(stop_words='english', tokenizer=english_corpus, min_df=2)),
+                          ('lda', LatentDirichletAllocation(n_jobs=-1, learning_method='online', random_state=42)),
+                          ('sm', SMOTE(random_state=42)),
+                          ('ss', StandardScaler()),
+                          ('log_reg', LogisticRegression(random_state=42))])
+
+params = {
+    'lda__n_components': Integer(5, 20),
+    'lda__learning_decay': Real(0.5, 1),
+    'log_reg__C': Categorical([0.001,0.01,0.1,1,10,100])
+}
+
+grid = BayesSearchCV(first_pipe, params, n_jobs=-1)
+
+grid.fit(ar.models['orig']['X_train'], ar.models['orig']['y_train'])
+
+y_pred = grid.predict(ar.models['orig']['X_train'])
+
+print('F1', f1_score(ar.models['orig']['y_train'], y_pred))
+print('Precision',precision_score(ar.models['orig']['y_train'], y_pred))
+print('Recall', recall_score(ar.models['orig']['y_train'], y_pred))
+print(confusion_matrix(ar.models['orig']['y_train'], y_pred))
+
+|metric|score|
+---|---|
+|F1| 0.03284926120870062|
+|Precision| 0.016861979166666666|
+|Recall| 0.6332518337408313|
+
+||Pred No| Pred Yes|
+|---|---|---|
+|Act No| 25492| 15101|
+|Act Yes|150|   259|
+
+>>> import numpy as np
+>>> from sklearn.preprocessing import FunctionTransformer
+>>> transformer = FunctionTransformer(np.log1p, validate=True)
+>>> X = np.array([[0, 1], [2, 3]])
+>>> transformer.transform(X)
+array([[0.        , 0.69314718],
+       [1.09861229, 1.38629436]])
+'''
 
