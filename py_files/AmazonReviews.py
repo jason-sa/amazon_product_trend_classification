@@ -8,8 +8,13 @@ from collections import defaultdict
 
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score, confusion_matrix
+from nltk.stem import SnowballStemmer
 
-class AmazonReviews:
+import seaborn as sns
+
+from SparseMatrixUtils import SparseMatrixUtils as smu
+
+class AmazonReviews():
     ''' Class for reading Amazon review data and building a ML model to predict whether or not a product
         will trend based on a customer review. The review data is sourced from (https://s3.amazonaws.com/amazon-reviews-pds/readme.html).
 
@@ -27,14 +32,16 @@ class AmazonReviews:
     _orig = 'orig'
 
 
-    def __init__(self, date_filter=datetime(2014,1,1)): # should add a flag to force to read from file
+    def __init__(self, date_filter=datetime(2014,1,1), pickle_path='../data/', name='AR'): # should add a flag to force to read from file
         ''' Initalizes an AmazonReview instance
 
         date_filter: (optional) 
         If None, then date_filter will be set to 2014-01-01
         '''
         self.date_filter = date_filter
-        self.results = pd.DataFrame() ## key error about concatenating. probably should set index here
+        self.results = None
+        self.pickle_path = pickle_path
+        self.name = name
 
     def load_data(self, path):
         ''' Loads the AmazonReview data
@@ -114,7 +121,7 @@ class AmazonReviews:
         # calcualte the score and set the trend or not decision variable
         self.product_trend_df['trend_score'] = np.tanh(self.product_trend_df['review_success'])
         trend_cutoff = self.product_trend_df['trend_score'].quantile(trend_percent)
-        self.product_trend_df['trend'] = (self.product_trend_df['trend_score'] > trend_cutoff).astype(int)
+        self.product_trend_df['trend'] = (self.product_trend_df['trend_score'] >= trend_cutoff).astype(int)
 
     def create_observations(self):
         ''' Creates the observation data set containing the first review and the unsupervised topic assigned.
@@ -150,7 +157,7 @@ class AmazonReviews:
         self.obs.drop(columns='index', inplace=True)
         self.obs.dropna(inplace=True)
     
-    def create_train_test_split(self, train_reduction = 0.1):
+    def create_train_test_split(self, train_reduction = 1):
         ''' Splits obs into X and y. Creates dictionaries to hold the train/test data sets, and performs an inital split.
         '''
         if train_reduction != 1:
@@ -177,7 +184,25 @@ class AmazonReviews:
                                                             test_size = 0.25, 
                                                             stratify=self.y,
                                                             random_state = self.RANDOM_STATE)
-        
+
+        # initalize the models dictionary to maintain the different trained models
+        self.models = defaultdict(dict)
+        self.pre_process_models = defaultdict(dict)
+
+    def pre_process_data(self, p_model, p_name):
+        ''' Pre-process the documents into DTM with sampling strategies applied. The pipeline and data sets are added to a dictionary.
+        '''
+        X_train_p, y_train_p = p_model.fit_sample(self.X_train, self.y_train)
+        self.pre_process_models[p_name].update(
+            {
+                'model': p_model,
+                'X_train': smu.save_sparse_matrix(X_train_p, 'X_train_'+p_name), 
+                'y_train': y_train_p
+            }
+        )
+
+        # self.dump_models()
+
     def add_dtm(self, dtm_model, model_name):
         ''' Creates the document term matrix from the training data set
 
@@ -194,7 +219,7 @@ class AmazonReviews:
         # )
 
     
-    def run_model(self, model, model_name):
+    def run_model(self, model, model_name, t_func=None):
         ''' Fits classification model, records accuracy, F1, precision, and recall to a data frame, and saves the confusion matrix
         '''
         model.fit(self.X_train, self.y_train)
@@ -207,15 +232,48 @@ class AmazonReviews:
             f1_score(self.y_train, y_pred)
         ]
 
-        m_results = pd.DataFrame(scores)
-        m_results.set_index(['Accuracy', 'Precision','Recall','F1 Score'])
-        m_results.columns = model
+        m_results = pd.DataFrame(data = scores, index= ['Accuracy', 'Precision','Recall','F1 Score'])
+        m_results.columns = [model_name]
 
-        self.results.drop(columns=model, errors='ignore', inplace=True)
-        self.results = pd.concat([self.results, m_results], axis=1)
+        if self.results is None:
+            self.results = m_results
+        else:
+            self.results.drop(columns=[model_name], errors='ignore', inplace=True)
+            self.results = pd.concat([self.results, m_results], axis=1)
 
-        # need probably a defaultdict to store the confusion matrix
+        # store the best model, confusion matrix, and cv_results
+        self.models[model_name].update(
+            {
+                'best_model': model.best_estimator_,
+                'confusion_matrix': confusion_matrix(self.y_train, y_pred),
+                'cv_results': model.cv_results_
+            }
+        )
+
+        # save current state to pickle
+        # self.dump_models(func=t_func)
     
+    def conf_matrix(self, model_name):
+        ''' Plots the confusion matrix for a specific model
+        '''
+        cm = self.models[model_name]['confusion_matrix']
+        sns.heatmap(cm, xticklabels=['predicted_negative', 'predicted_positive'], 
+                    yticklabels=['actual_negative', 'actual_positive'], annot=True,
+                    fmt='d', annot_kws={'fontsize':20}, cmap="YlGnBu")
+
+    def dump_models(self, func=None):
+        ''' Dumps the class into a pickle
+        '''
+        f = open(self.pickle_path+self.name+'.pkl', 'wb')
+        pickle.dump(self, f)
+        if func is not None:
+            pickle.dump(func, f)
+
+    def load_models(self):
+        ''' Load a saved class from a pickle
+        '''
+        return pickle.load(open(self.pickle_path + self.name + '.pkl', 'rb'))
+
     def cross_validate(self):
         ''' Performs 10-fold CV 
         '''
