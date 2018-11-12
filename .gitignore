@@ -4,6 +4,7 @@ data/*.pkl
 data/model_pickles
 data/sparse_matrix
 data/transform_memory
+.vscode
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
