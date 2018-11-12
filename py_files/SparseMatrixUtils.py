@@ -11,8 +11,6 @@ class SparseMatrixUtils:
         sparse_matrix_name += '.npz'
         f = matrix_dir + '/' + sparse_matrix_name
         sparse.save_npz(f, sparse_matrix)
-
-        return f 
     
     @staticmethod
     def load_sparse_matrix(sparse_matrix_name, matrix_dir = '../data/sparse_matrix'):

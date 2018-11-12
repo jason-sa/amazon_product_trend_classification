@@ -7,7 +7,7 @@ import re
 from collections import defaultdict
 
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score, confusion_matrix
+from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score, confusion_matrix, roc_auc_score
 from nltk.stem import SnowballStemmer
 
 import seaborn as sns
@@ -39,7 +39,8 @@ class AmazonReviews():
         If None, then date_filter will be set to 2014-01-01
         '''
         self.date_filter = date_filter
-        self.results = None
+        self.results = pd.DataFrame(columns=['Precision', 'Recall', 'F1', 'Accuracy','AUC'])
+        self.y_scores = defaultdict(np.ndarray)
         self.pickle_path = pickle_path
         self.name = name
 
@@ -193,10 +194,14 @@ class AmazonReviews():
         ''' Pre-process the documents into DTM with sampling strategies applied. The pipeline and data sets are added to a dictionary.
         '''
         X_train_p, y_train_p = p_model.fit_sample(self.X_train, self.y_train)
+
+        xt_name = 'X_train_'+ p_name
+        smu.save_sparse_matrix(X_train_p, xt_name)
+
         self.pre_process_models[p_name].update(
             {
                 'model': p_model,
-                'X_train': smu.save_sparse_matrix(X_train_p, 'X_train_'+p_name), 
+                'X_train': xt_name, 
                 'y_train': y_train_p
             }
         )
@@ -218,21 +223,52 @@ class AmazonReviews():
         #     'X_test': X_test}
         # )
 
-    
-    def run_model(self, model, model_name, t_func=None):
+    def log_score(self, y_true, y_score, run_name, prob_cutoff = 0.5):
+        '''
+        '''
+        # log scores
+        y_score_decision = (y_score >= 0.5).astype(int)
+        
+        run_results = {
+            'Precision': precision_score(y_true, y_score_decision),
+            'Recall': recall_score(y_true, y_score_decision),
+            'F1': f1_score(y_true, y_score_decision),
+            'Accuracy': accuracy_score(y_true, y_score_decision),
+            'AUC': roc_auc_score(y_true, y_score)
+        }
+
+        self.results.drop(index=run_name, errors='ignore', inplace=True)
+        self.results = self.results.append(pd.DataFrame(run_results, index=[run_name]))
+
+        # save y_score for later calculations
+        self.y_scores[run_name] = y_score
+
+    def run_model(self, model, model_name, p_name, sample=1):
         ''' Fits classification model, records accuracy, F1, precision, and recall to a data frame, and saves the confusion matrix
         '''
-        model.fit(self.X_train, self.y_train)
-        y_pred = model.predict(self.X_train)
+        X_train = smu.load_sparse_matrix(self.pre_process_models[p_name]['X_train'])
+        y_train = self.pre_process_models[p_name]['y_train']
+
+        if sample != 1:
+            s = int(X_train.shape[0]*sample)
+            i = np.random.choice(X_train.shape[0], size=s)
+            X_train = X_train[i]
+            y_train = y_train[i]
+
+        model.fit(X_train, y_train) # fitted on upsampled data
+
+        # transform original X_train to predict
+        y_pred = model.predict(self.pre_process_models[p_name]['model'].steps[0][1].transform(self.X_train)) # need to predict on the original data
 
         scores = [
             accuracy_score(self.y_train, y_pred),
             precision_score(self.y_train, y_pred),
             recall_score(self.y_train, y_pred),
-            f1_score(self.y_train, y_pred)
+            f1_score(self.y_train, y_pred),
+            roc_auc_score(self.y_train, y_pred)
         ]
 
-        m_results = pd.DataFrame(data = scores, index= ['Accuracy', 'Precision','Recall','F1 Score'])
+        m_results = pd.DataFrame(data = scores, index= ['Accuracy', 'Precision','Recall','F1 Score', 'AUC'])
         m_results.columns = [model_name]
 
         if self.results is None:
