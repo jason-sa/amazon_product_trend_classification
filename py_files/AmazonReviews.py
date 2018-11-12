@@ -251,7 +251,12 @@ class AmazonReviews():
         plt.plot([0,1],[0,1])
 
         for model, y_probs in self.y_scores.items():
-            fpr, tpr,_ = roc_curve(self.y_train, y_probs)
+            print(model)
+            if model in 'TEST':
+                print(model)
+                fpr, tpr,_ = roc_curve(self.y_test, y_probs)    
+            else:
+                fpr, tpr,_ = roc_curve(self.y_train, y_probs)
         #     roc_auc = auc(fpr, tpr)
             plt.plot(fpr,tpr, label=model)
             
