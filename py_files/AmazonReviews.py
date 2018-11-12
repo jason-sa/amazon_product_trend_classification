@@ -7,10 +7,11 @@ import re
 from collections import defaultdict
 
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score, confusion_matrix, roc_auc_score
+from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score, confusion_matrix, roc_auc_score, roc_curve
 from nltk.stem import SnowballStemmer
 
 import seaborn as sns
+import matplotlib.pyplot as plt
 
 from SparseMatrixUtils import SparseMatrixUtils as smu
 
@@ -228,7 +229,7 @@ class AmazonReviews():
         '''
         # log scores
         y_score_decision = (y_score >= 0.5).astype(int)
-        
+
         run_results = {
             'Precision': precision_score(y_true, y_score_decision),
             'Recall': recall_score(y_true, y_score_decision),
@@ -242,6 +243,21 @@ class AmazonReviews():
 
         # save y_score for later calculations
         self.y_scores[run_name] = y_score
+
+    def plot_roc_curve(self):
+        '''
+        '''
+        plt.figure(figsize=(6,6))
+        plt.plot([0,1],[0,1])
+
+        for model, y_probs in self.y_scores.items():
+            fpr, tpr,_ = roc_curve(self.y_train, y_probs)
+        #     roc_auc = auc(fpr, tpr)
+            plt.plot(fpr,tpr, label=model)
+            
+        plt.legend()
+        plt.xlabel('False Positive Rate')
+        plt.ylabel('True Positive Rate')
 
     def run_model(self, model, model_name, p_name, sample=1):
         ''' Fits classification model, records accuracy, F1, precision, and recall to a data frame, and saves the confusion matrix
