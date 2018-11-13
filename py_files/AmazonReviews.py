@@ -135,7 +135,7 @@ class AmazonReviews():
         # get all reviews which appeared in the first day of the horizon
         first_review_day = self.reviews_selected_df.groupby('product_id')['review_date'].min().reset_index()
         first_review_day = first_review_day.merge(
-            self.reviews_selected_df.loc[:,['review_id', 'product_id', 'review_date', 'review_body']],
+            self.reviews_selected_df.loc[:,['review_id', 'product_id', 'review_date', 'review_body', 'star_rating']],
             how = 'inner',
             on = ['review_date', 'product_id']
         )
