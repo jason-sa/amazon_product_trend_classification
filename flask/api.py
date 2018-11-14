@@ -3,6 +3,7 @@ import dill
 import re
 from nltk.corpus import stopwords
 from nltk import SnowballStemmer
+import re
 
 stemmer = SnowballStemmer('english') # used in the model to predict whether or not a product will trend
 MODELING_PATH = '../data/modeling/'
