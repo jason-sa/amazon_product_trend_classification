@@ -1,0 +1,74 @@
+                <!-- onkeydown='updateScore()' -->
+
+<html>
+  <head>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script type="text/javascript" src="https://d3js.org/d3.v4.min.js"></script>
+    <script src="https://d3js.org/d3-selection-multi.v1.min.js"></script>
+  </head>
+  <body>
+    <h1>Amazon trending product review generator</h1>
+
+    <div class="review-input">
+      <textarea rows="4" cols="50"
+                id='review_text'
+                placeholder='Please type your review here'></textarea>
+
+      <button id='do_it' onclick='updateScore()'>Submit</button>
+    </div>
+
+    <!-- <div class='imporved_comment'>
+      <p>Improved comment: <div id="imp_comment"></div></p>
+    </div> -->
+
+    <div class="table-responsive">
+      <table class="table">
+        <thead>
+          <tr>
+            <th></th>
+            <th></th>
+            <th>Trend Probability</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Original</td>
+            <td><div id="original_comment"></div></td>
+            <td><div id="original_prob"></div></td>
+          </tr>
+          <tr>
+            <td>Improved</td>
+            <td><div id="improved_comment"></div></td>
+            <td><div id="improved_prob"></div></td>
+          </tr>
+        </tbody>
+
+      </table>
+    </div>
+
+    <!-- <div class='result'>
+      <p>Probability will trend: <div id="output">?</div></p>
+    </div>
+
+    <div class='improved_comment_prob'>
+      <p>Improved comment probability: <div id="imp_comment_prob">?</div></p>
+    </div> -->
+
+    <!-- <div class='smile'>
+      <svg>
+      </svg>
+    </div> -->
+
+    <script type='text/javascript' src="{{url_for('static', filename='js/jquery.js') }}"></script>
+
+    <!-- It is WAY more readable to have your javascript served from a separate file
+         (and we can reuse it too) -->
+    <script type='text/javascript' src="{{url_for('static', filename='js/updateScore.js')}}">
+    </script>
+
+    <!-- <script type='text/javascript' src="{{url_for('static', filename='js/smile.js')}}">
+    </script> -->
+
+  </body>
+
+</html>
