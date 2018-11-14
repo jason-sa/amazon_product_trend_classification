@@ -65,6 +65,7 @@ def get_best_comment(comment):
     '''
     comment_tokenized = token_comment(comment)
     comment_list = [comment]
+    word_list = ['']
 
     for t in comment_tokenized:
         sim_words = most_similar(nlp.vocab[t])
@@ -72,10 +73,14 @@ def get_best_comment(comment):
             new_comment = comment.replace(t, s)
             if new_comment != comment:
                 comment_list.append(comment.replace(t, s))
+                word_list.append(s)
 
     comment_probs = final_model.predict_proba(comment_list)[:,1]
 
-    return comment_list[comment_probs.argmax()], comment_probs.max(), comment_probs[0]
+    return (comment_list[comment_probs.argmax()], 
+            comment_probs.max().astype(float), 
+            comment_probs[0].astype(float),
+            word_list[comment_probs.argmax()])
 
 if __name__ == '__main__':
     comment = 'This toy is amazing! So much worth the bucks!!'
