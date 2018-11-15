@@ -1,5 +1,5 @@
 body{
-  background-color: #6699FF;
+  background-color: #146eb4;
   font-style: roboto;
   font-size: large;
 }
@@ -32,7 +32,7 @@ h1, h2 {
 
 .table{
   padding: 10px;
-  background-color: yellow;
+  background-color: #ff9900;
   width: 66%;
   margin: 20px auto;
   border: 1px solid black;
