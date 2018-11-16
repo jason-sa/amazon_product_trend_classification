@@ -7,6 +7,10 @@ data/sparse_matrix
 data/transform_memory
 .vscode
 docs/img
+data/modeling
+
+!review_corpus.pkl
+!final_full_model.pkl
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
