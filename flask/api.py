@@ -6,14 +6,14 @@ from nltk import SnowballStemmer
 import re
 
 stemmer = SnowballStemmer('english') # used in the model to predict whether or not a product will trend
-MODELING_PATH = '../data/modeling/'
+MODELING_PATH = 'models/'
 
 def load(obj_name):
     f = MODELING_PATH + obj_name
     return dill.load(open(f, 'rb'))
 
 # Load the word2vec model and final classifier model
-nlp = spacy.load('en_core_web_lg')
+nlp = spacy.load('en_core_web_md')
 final_model = load('final_full_model.pkl')
 # final_model = load('final_full_model_test.pkl')
 
@@ -52,7 +52,7 @@ def most_similar(word, top=10):
     return [w.orth_ for w in by_similarity[:top]]
 
 def get_best_comment(comment):
-    ''' 
+    '''
     Analyzes an Amazon Toy review comment and determines if any one word could be replaced to increase the
     probability of the product trending.
 
@@ -77,8 +77,8 @@ def get_best_comment(comment):
 
     comment_probs = final_model.predict_proba(comment_list)[:,1]
 
-    return (comment_list[comment_probs.argmax()], 
-            comment_probs.max().astype(float), 
+    return (comment_list[comment_probs.argmax()],
+            comment_probs.max().astype(float),
             comment_probs[0].astype(float),
             word_list[comment_probs.argmax()])
 
