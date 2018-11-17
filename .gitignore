@@ -1,14 +1,14 @@
 # custom
-data/*.tsv
-data/*.pkl
-data/*.csv
-data/model_pickles
-data/sparse_matrix
-data/transform_memory
+# data/*.tsv
+# data/*.pkl
+# data/*.csv
+# data/model_pickles
+# data/sparse_matrix
+# data/transform_memory
 .vscode
 docs/img
-data/modeling
-
+# data/modeling
+data/*
 !review_corpus.pkl
 !final_full_model.pkl
 

@@ -7,7 +7,6 @@ cryptography==2.3.1
 cymem==2.0.2
 cytoolz==0.9.0.1
 dill==0.2.8.2
-en-core-web-lg==2.0.0
 Flask==1.0.2
 idna==2.7
 imbalanced-learn==0.4.3
@@ -40,3 +39,4 @@ urllib3==1.23
 Werkzeug==0.14.1
 wrapt==1.10.11
 xgboost==0.81
+https://github.com/explosion/spacy-models/releases/download/en_core_web_lg-2.0.0/en_core_web_lg-2.0.0.tar.gz
