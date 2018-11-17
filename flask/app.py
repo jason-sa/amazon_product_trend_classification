@@ -7,6 +7,8 @@ from nltk import SnowballStemmer
 
 stemmer = SnowballStemmer('english') # used in the model to predict whether or not a product will trend
 
+def english_corpus(doc, tkpat=re.compile('\\b[a-z][a-z]+\\b')):
+    return [stemmer.stem(w) for w in tkpat.findall(doc)]
 
 app = Flask(__name__)
 app.debug = True
