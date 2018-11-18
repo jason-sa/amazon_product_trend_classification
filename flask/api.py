@@ -13,7 +13,7 @@ def load(obj_name):
     return dill.load(open(f, 'rb'))
 
 # Load the word2vec model and final classifier model
-nlp = spacy.load('en_core_web_md')
+#nlp = spacy.load('en_core_web_md')
 final_model = load('final_full_model.pkl')
 # final_model = load('final_full_model_test.pkl')
 
