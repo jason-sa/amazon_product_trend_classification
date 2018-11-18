@@ -18,8 +18,8 @@ final_model = load('final_full_model.pkl')
 # final_model = load('final_full_model_test.pkl')
 
 # build the vocabulary of trending reviews
-review_corpus = load('review_corpus.pkl')
-review_vocab = [nlp.vocab[w] for w in review_corpus]
+#review_corpus = load('review_corpus.pkl')
+#review_vocab = [nlp.vocab[w] for w in review_corpus]
 
 
 def token_comment(comment):
