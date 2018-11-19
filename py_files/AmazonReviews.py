@@ -10,30 +10,56 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score, confusion_matrix, roc_auc_score, roc_curve
 from nltk.stem import SnowballStemmer
 
-import seaborn as sns
 import matplotlib.pyplot as plt
-
-from SparseMatrixUtils import SparseMatrixUtils as smu
 
 class AmazonReviews():
     ''' Class for reading Amazon review data and building a ML model to predict whether or not a product
         will trend based on a customer review. The review data is sourced from (https://s3.amazonaws.com/amazon-reviews-pds/readme.html).
 
-        date_filter:
-        reviews_df:
-        reviews_selected_df:
-        product_trend_df:
-        obs:
-        X:
-        y:
-        X_train: dictionary of training data sets with 'orig' being the original train/test split from X
+        date_filter: DataFrame 
+        Filters the raw Amazon review data
+        
+        reviews_df: DataFrame
+        Filtered data frame of the Amazon review data
+        
+        reviews_selected_df: DataFrame
+        Filtered reviews_df for the time window to calculate the trend score
+        
+        product_trend_df: DataFrame
+        Output of the trend calculation process and can analyze whether the trend score is calcualted correctly
+        
+        obs: DataFrame
+        Entire set of observations the model will be trained and tested upon. 
+        
+        X: np.array
+        Array for sklearn interface representing the feature space. 
+        
+        y: np.array
+        Array for sklearn interface representing the target.
+        
+        X_train: np.array 
+        Array for the sklearn interface representing the training feature space.       
+ 
+        X_test: np.array
+        Array for the sklearn interface representing the testing feature space.
+        
+        y_train: np.array
+        Array for the sklearn interface representing the training target.
+        
+        y_test: np.array
+        Array for the sklearn interface representing the testing target.
+        
+        results: DataFrame
+        Stores the results of each model. DataFrame consists of accuracy, precision, recall, F1, and AUC.
+        
+        y_scores: defaultdict 
+        Dictionary storing the target probabilities for each model.
     '''
     data_path = '../data/'
     RANDOM_STATE = 42
-    _orig = 'orig'
 
 
-    def __init__(self, date_filter=datetime(2014,1,1), pickle_path='../data/', name='AR'): # should add a flag to force to read from file
+    def __init__(self, date_filter=datetime(2014,1,1)):# should add a flag to force to read from file
         ''' Initalizes an AmazonReview instance
 
         date_filter: (optional) 
@@ -42,8 +68,6 @@ class AmazonReviews():
         self.date_filter = date_filter
         self.results = pd.DataFrame(columns=['Precision', 'Recall', 'F1', 'Accuracy','AUC'])
         self.y_scores = defaultdict(np.ndarray)
-        self.pickle_path = pickle_path
-        self.name = name
 
     def load_data(self, path):
         ''' Loads the AmazonReview data
@@ -128,7 +152,7 @@ class AmazonReviews():
     def create_observations(self):
         ''' Creates the observation data set containing the first review and the unsupervised topic assigned.
 
-            Creates obs data frame (product_id, review_date, review_id, review_body, trend). 
+            Creates obs data frame (product_id, review_date, review_id, review_body, trend, star rating). 
             The obs data frame combines the first review with the product trend. If a review body is empty, then the product is dropped.
         '''
 
@@ -159,19 +183,9 @@ class AmazonReviews():
         self.obs.drop(columns='index', inplace=True)
         self.obs.dropna(inplace=True)
     
-    def create_train_test_split(self, train_reduction = 1):
-        ''' Splits obs into X and y. Creates dictionaries to hold the train/test data sets, and performs an inital split.
+    def create_train_test_split(self):
+        ''' Cleans the review body text by removing digits and underscores. Splits obs into X and y. Creates dictionaries to hold the train/test data sets, and performs an inital split.
         '''
-        if train_reduction != 1:
-            neg_split = int(self.obs.shape[0] * train_reduction * .99)
-            pos_split = int(self.obs.shape[0] * train_reduction * .01)
-            reduced_obs = pd.concat(
-                [self.obs[self.obs['trend'] == 0].sample(n=neg_split),
-                self.obs[self.obs['trend'] == 1].sample(n=pos_split)],
-                axis=0
-                )
-        else:
-            reduced_obs = self.obs
 
         self.X = (reduced_obs.review_body
                     .str.replace(r"""\w*\d\w*""", ' ')  # remove digits
@@ -187,45 +201,22 @@ class AmazonReviews():
                                                             stratify=self.y,
                                                             random_state = self.RANDOM_STATE)
 
-        # initalize the models dictionary to maintain the different trained models
-        self.models = defaultdict(dict)
-        self.pre_process_models = defaultdict(dict)
-
-    def pre_process_data(self, p_model, p_name):
-        ''' Pre-process the documents into DTM with sampling strategies applied. The pipeline and data sets are added to a dictionary.
-        '''
-        X_train_p, y_train_p = p_model.fit_sample(self.X_train, self.y_train)
-
-        xt_name = 'X_train_'+ p_name
-        smu.save_sparse_matrix(X_train_p, xt_name)
-
-        self.pre_process_models[p_name].update(
-            {
-                'model': p_model,
-                'X_train': xt_name, 
-                'y_train': y_train_p
-            }
-        )
-
-        # self.dump_models()
-
-    def add_dtm(self, dtm_model, model_name):
-        ''' Creates the document term matrix from the training data set
-
-        dtm_model: sklearn model to create dtm
-        model_name: name of the model 
-        '''
-        # X_train = dtm_model.fit_transform(self.models[self._orig]['X_train'])
-        # X_test = dtm_model.transform(self.models[self._orig]['X_test'])
-
-        # self.models[model_name].update({
-        #     'model': dtm_model,
-        #     'X_train': X_train,
-        #     'X_test': X_test}
-        # )
 
     def log_score(self, y_true, y_score, run_name, prob_cutoff = 0.5):
-        '''
+        ''' Logs the related classification metrics for the training dataset.
+
+        y_true: numpy.aray (nsamples,)
+        Array of the actual classification.
+
+        y_score: numpy.array(nsamples,)
+        Probablity array from the trained model.
+
+        run_name: string
+        Name for the model being scored.
+
+        prob_cutoff: float
+        Probability cutoff for calcualting the confustion matrix related metrics 
+
         '''
         # log scores
         y_score_decision = (y_score >= 0.5).astype(int)
@@ -245,162 +236,16 @@ class AmazonReviews():
         self.y_scores[run_name] = y_score
 
     def plot_roc_curve(self):
-        '''
+        ''' Creates a ROC curve plot for all models which have been logged.
         '''
         plt.figure(figsize=(6,6))
         plt.plot([0,1],[0,1])
 
         for model, y_probs in self.y_scores.items():
-            print(model)
-            if model in 'TEST':
-                print(model)
-                fpr, tpr,_ = roc_curve(self.y_test, y_probs)    
-            else:
-                fpr, tpr,_ = roc_curve(self.y_train, y_probs)
-        #     roc_auc = auc(fpr, tpr)
+            fpr, tpr,_ = roc_curve(self.y_train, y_probs)
             plt.plot(fpr,tpr, label=model)
             
         plt.legend()
         plt.xlabel('False Positive Rate')
         plt.ylabel('True Positive Rate')
-
-    def run_model(self, model, model_name, p_name, sample=1):
-        ''' Fits classification model, records accuracy, F1, precision, and recall to a data frame, and saves the confusion matrix
-        '''
-        X_train = smu.load_sparse_matrix(self.pre_process_models[p_name]['X_train'])
-        y_train = self.pre_process_models[p_name]['y_train']
-
-        if sample != 1:
-            s = int(X_train.shape[0]*sample)
-            i = np.random.choice(X_train.shape[0], size=s)
-            X_train = X_train[i]
-            y_train = y_train[i]
-
-        model.fit(X_train, y_train) # fitted on upsampled data
-
-        # transform original X_train to predict
-        y_pred = model.predict(self.pre_process_models[p_name]['model'].steps[0][1].transform(self.X_train)) # need to predict on the original data
-
-        scores = [
-            accuracy_score(self.y_train, y_pred),
-            precision_score(self.y_train, y_pred),
-            recall_score(self.y_train, y_pred),
-            f1_score(self.y_train, y_pred),
-            roc_auc_score(self.y_train, y_pred)
-        ]
-
-        m_results = pd.DataFrame(data = scores, index= ['Accuracy', 'Precision','Recall','F1 Score', 'AUC'])
-        m_results.columns = [model_name]
-
-        if self.results is None:
-            self.results = m_results
-        else:
-            self.results.drop(columns=[model_name], errors='ignore', inplace=True)
-            self.results = pd.concat([self.results, m_results], axis=1)
-
-        # store the best model, confusion matrix, and cv_results
-        self.models[model_name].update(
-            {
-                'best_model': model.best_estimator_,
-                'confusion_matrix': confusion_matrix(self.y_train, y_pred),
-                'cv_results': model.cv_results_
-            }
-        )
-
-        # save current state to pickle
-        # self.dump_models(func=t_func)
-    
-    def conf_matrix(self, model_name):
-        ''' Plots the confusion matrix for a specific model
-        '''
-        cm = self.models[model_name]['confusion_matrix']
-        sns.heatmap(cm, xticklabels=['predicted_negative', 'predicted_positive'], 
-                    yticklabels=['actual_negative', 'actual_positive'], annot=True,
-                    fmt='d', annot_kws={'fontsize':20}, cmap="YlGnBu")
-
-    def dump_models(self, func=None):
-        ''' Dumps the class into a pickle
-        '''
-        f = open(self.pickle_path+self.name+'.pkl', 'wb')
-        pickle.dump(self, f)
-        if func is not None:
-            pickle.dump(func, f)
-
-    def load_models(self):
-        ''' Load a saved class from a pickle
-        '''
-        return pickle.load(open(self.pickle_path + self.name + '.pkl', 'rb'))
-
-    def cross_validate(self):
-        ''' Performs 10-fold CV 
-        '''
-        return NotImplementedError
-
-    def model_metrics(self):
-        ''' Builds heatmap and calcualtes accuracy, recall, precision, and F1
-        '''
-        return NotImplementedError
-
-    def unsupervised_model(self):
-        ''' Builds some unsupervised model
-        '''
-    
-    def calc_inertia(self):
-        ''' Runs some range of parameters and calcualtes inertia
-        '''
-
-        
-'''
-from sklearn.pipeline import Pipeline
-from sklearn.linear_model import LogisticRegression
-from sklearn.preprocessing import StandardScaler
-from imblearn.pipeline import Pipeline as imbPipeline
-from imblearn.over_sampling import SMOTE
-from skopt import BayesSearchCV
-from skopt.space import Real, Integer, Categorical
-
-from sklearn.metrics import confusion_matrix, f1_score, recall_score, precision_score, accuracy_score
-
-first_pipe = imbPipeline([('cnt_v', CountVectorizer(stop_words='english', tokenizer=english_corpus, min_df=2)),
-                          ('lda', LatentDirichletAllocation(n_jobs=-1, learning_method='online', random_state=42)),
-                          ('sm', SMOTE(random_state=42)),
-                          ('ss', StandardScaler()),
-                          ('log_reg', LogisticRegression(random_state=42))])
-
-params = {
-    'lda__n_components': Integer(5, 20),
-    'lda__learning_decay': Real(0.5, 1),
-    'log_reg__C': Categorical([0.001,0.01,0.1,1,10,100])
-}
-
-grid = BayesSearchCV(first_pipe, params, n_jobs=-1)
-
-grid.fit(ar.models['orig']['X_train'], ar.models['orig']['y_train'])
-
-y_pred = grid.predict(ar.models['orig']['X_train'])
-
-print('F1', f1_score(ar.models['orig']['y_train'], y_pred))
-print('Precision',precision_score(ar.models['orig']['y_train'], y_pred))
-print('Recall', recall_score(ar.models['orig']['y_train'], y_pred))
-print(confusion_matrix(ar.models['orig']['y_train'], y_pred))
-
-|metric|score|
----|---|
-|F1| 0.03284926120870062|
-|Precision| 0.016861979166666666|
-|Recall| 0.6332518337408313|
-
-||Pred No| Pred Yes|
-|---|---|---|
-|Act No| 25492| 15101|
-|Act Yes|150|   259|
-
->>> import numpy as np
->>> from sklearn.preprocessing import FunctionTransformer
->>> transformer = FunctionTransformer(np.log1p, validate=True)
->>> X = np.array([[0, 1], [2, 3]])
->>> transformer.transform(X)
-array([[0.        , 0.69314718],
-       [1.09861229, 1.38629436]])
-'''
 
