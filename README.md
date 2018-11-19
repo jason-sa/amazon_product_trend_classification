@@ -14,7 +14,7 @@ I utilized historical Amazon toy review data provided by Amazon and hosted [here
 
 The data was first filtered to consider only 2014 to 2015, which resulted in 211,229 unique products with at least one review. I only considered reviews within a 30-day time window from the first review to calculate the product trend score. The distribution of first reviews can be seen below.
 
-![first review recorded](img/first_recorded_review.png)
+![first review recorded](docs/img/first_recorded_review.png)
 
 ### **Product Trend Score**
 
@@ -35,8 +35,8 @@ Finally, a product was classified as trending or not if the product had a trend 
 
 The goal of this model was to determine if the first review for each product could signal whether or not the product will trend over the first 30 days. I generated word clouds for the trending and not trending products to see if there could be any high level differences between the two groups.
 
-![trending product word cloud](img/trend_word_cloud.png)
-![not trending product word cloud](img/not_trend_word_cloud.png)
+![trending product word cloud](docs/img/trend_word_cloud.png)
+![not trending product word cloud](docs/img/not_trend_word_cloud.png)
 
 You can see there are some high-level differences between the trending and not trending products. I preformed a train/test split of 75/25, and then  extracted these differences by utilizing a LDA model on the count vectorization which included single and bi-grams of the first review. I found 5 topics to make the most sense in terms of accuracy for my classification model. A sampling of the most common word in each topic are given in the table below.
 
@@ -102,7 +102,7 @@ In conclusion, the first review did provide some initial insight into whether or
 
 I decided to productize my model by creating a Flask app which takes a review, determines the review trending probability, and analyzes the submitted review to see if a single word could be swapped out to improve the trend probability. A screen shot of the app is below.
 
-![review app screen shot](img/review_app_screen_shot.png)
+![review app screen shot](docs/img/review_app_screen_shot.png)
 
 I would love to enhance the app further by attempting to replace phrases instead of single words. Could it be possible to provide a product description, and then generate a review which would encourage the product to trend the most?
 
@@ -117,6 +117,3 @@ I utilized the following tools for my analysis.
   * App Dev: Flask
 * Keynote
 
-## **What I would do differently?**
-
-I spent too much time thinking of the different topic modeling or unsupervised learning algorithms to apply to a count vectorizer of tf-idf of my documents. In hindsight, I would have much preferred to have built a quick initial model with LDA to produce the entire pipeline. This would have allowed more time to then try different pipelines during model selection. I was only really able to explore different adjustments to the classification model piece of the pipeline, whereas possibly analyzing different LDA or count vectorizer settings would have improved overall model performance.
