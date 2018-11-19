@@ -187,7 +187,7 @@ class AmazonReviews():
         ''' Cleans the review body text by removing digits and underscores. Splits obs into X and y. Creates dictionaries to hold the train/test data sets, and performs an inital split.
         '''
 
-        self.X = (reduced_obs.review_body
+        self.X = (self.obs.review_body
                     .str.replace(r"""\w*\d\w*""", ' ')  # remove digits
                     .str.replace('_', ' ')              # remove underscores
         )
