@@ -9,8 +9,7 @@
 docs/img
 # data/modeling
 data/*
-!review_corpus.pkl
-!final_full_model.pkl
+.DS_Store
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
